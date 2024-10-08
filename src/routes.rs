@@ -1,9 +1,8 @@
-use crate::handlers::user_handler::create_user;
-use axum::{routing::post, Router};
+use axum::Router;
 use sea_orm::DatabaseConnection;
+use user_routes::user_routes;
+mod user_routes;
 
 pub fn create_routes(db: DatabaseConnection) -> Router {
-    Router::new()
-        .route("/user", post(create_user))
-        .with_state(db)
+    Router::new().nest("/user", user_routes(db))
 }

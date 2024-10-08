@@ -3,12 +3,13 @@ CREATE TABLE users(
     username VARCHAR NOT NULL,
     email VARCHAR UNIQUE NOT NULL,
     password VARCHAR NOT NULL,
+    role_id INTEGER NOT NULL DEFAULT 4,
     is_email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_by INTEGER DEFAULT NULL,
-    updated_at TIMESTAMP DEFAULT NULL
+    updated_at TIMESTAMP DEFAULT NULL,
     CONSTRAINT email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
     CONSTRAINT is_email_verified_format CHECK (is_email_verified IN (FALSE, TRUE)),
     CONSTRAINT is_active_format CHECK (is_active IN (FALSE, TRUE))

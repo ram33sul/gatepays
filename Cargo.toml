@@ -13,3 +13,5 @@ dotenv = "0.15"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
+argon2 = "0.4"
+rand = "0.8"
