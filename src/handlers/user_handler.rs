@@ -1,5 +1,5 @@
 use crate::{
-    helpers::user_helper::{hash_password, verify_password},
+    helpers::user_helper::{hash_password, sign_jwt, verify_password},
     models::user::{self, ActiveModel, Entity as User},
 };
 use axum::{
@@ -34,6 +34,12 @@ pub struct LoginPayload {
 }
 
 #[derive(Serialize)]
+pub struct AuthorisedResponse {
+    user_data: user::Model,
+    token: String,
+}
+
+#[derive(Serialize)]
 pub struct ErrorResponse {
     message: String,
 }
@@ -49,7 +55,7 @@ impl ErrorResponse {
 pub async fn create_user(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateUserPayload>,
-) -> Result<(StatusCode, Json<user::Model>), (StatusCode, Json<ErrorResponse>)> {
+) -> Result<(StatusCode, Json<AuthorisedResponse>), (StatusCode, Json<ErrorResponse>)> {
     let hashed_password = hash_password(&payload.password).map_err(|_| {
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -91,7 +97,19 @@ pub async fn create_user(
         )
     })?;
 
-    Ok((StatusCode::CREATED, Json(created_user)))
+    let token = sign_jwt(&created_user.id).map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new("Error creating user")),
+        )
+    })?;
+
+    let data = AuthorisedResponse {
+        user_data: created_user,
+        token,
+    };
+
+    Ok((StatusCode::CREATED, Json(data)))
 }
 
 pub async fn get_user(
@@ -122,7 +140,7 @@ pub async fn get_users(
 pub async fn do_login(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<LoginPayload>,
-) -> Result<Json<user::Model>, StatusCode> {
+) -> Result<Json<AuthorisedResponse>, StatusCode> {
     let user = User::find()
         .filter(
             Condition::any()
@@ -136,7 +154,12 @@ pub async fn do_login(
     let is_verified = verify_password(&user.password, &payload.password)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     if is_verified {
-        Ok(Json(user))
+        let token = sign_jwt(&user.id).map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR))?;
+        let data = AuthorisedResponse {
+            user_data: user,
+            token,
+        };
+        Ok(Json(data))
     } else {
         Err(StatusCode::UNAUTHORIZED)
     }
