@@ -8,6 +8,9 @@ pub struct Config {
     pub paypal_client_id: String,
     pub paypal_secret_key: String,
     pub paypal_url: String,
+    pub stripe_publishable_key: String,
+    pub stripe_secret_key: String,
+    pub stripe_url: String,
 }
 
 impl Config {
@@ -38,6 +41,18 @@ impl Config {
                 .expect("PAYPAL_URL must be set")
                 .parse()
                 .expect("PAYPAL_URL must be a valid port number"),
+            stripe_publishable_key: std::env::var("STRIPE_PUBLISHABLE_KEY")
+                .expect("STRIPE_PUBLISHABLE_KEY must be set")
+                .parse()
+                .expect("STRIPE_PUBLISHABLE_KEY must be a valid IP address"),
+            stripe_secret_key: std::env::var("STRIPE_SECRET_KEY")
+                .expect("PAYPAL_SECRET_KEY must be set")
+                .parse()
+                .expect("PAYPAL_SECRET_KEY must be a valid port number"),
+            stripe_url: std::env::var("STRIPE_URL")
+                .expect("STRIPE_URL must be set")
+                .parse()
+                .expect("STRIPE_URL must be a valid port number"),
         }
     }
 }

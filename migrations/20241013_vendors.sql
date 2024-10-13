@@ -1,6 +1,6 @@
-CREATE TABLE roles (
+CREATE TABLE vendors (
     id SERIAL PRIMARY KEY,
-    name VARCHAR NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL CHECK (name IN ('PAYPAL', 'RAZORPAY')),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -8,7 +8,7 @@ CREATE TABLE roles (
     updated_at TIMESTAMP DEFAULT NULL
 );
 
-CREATE INDEX idx_is_active_roles ON roles (is_active);
+CREATE INDEX idx_is_active_vendors ON vendors (is_active);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -18,14 +18,12 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_roles_modtime
-BEFORE UPDATE ON roles
+CREATE TRIGGER update_vendors_modtime
+BEFORE UPDATE ON vendors
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 
-INSERT INTO roles (id, name, created_by)
+INSERT INTO vendors (id, name, created_by)
 VALUES
-(1, 'system', 1),
-(2, 'superadmin', 1),
-(3, 'admin', 1),
-(4, 'user', 1);
+(1, 'PAYPAL', 1),
+(2, 'RAZORPAY', 1);

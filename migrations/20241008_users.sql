@@ -15,11 +15,11 @@ CREATE TABLE users(
     CONSTRAINT is_active_format CHECK (is_active IN (FALSE, TRUE))
 );
 
-CREATE INDEX idx_username ON users (username);
-CREATE INDEX idx_email ON users (email);
-CREATE INDEX idx_created_by ON users (created_by);
-CREATE INDEX idx_is_email_verified ON users (is_email_verified);
-CREATE INDEX idx_is_active ON users (is_active);
+CREATE INDEX idx_username_users ON users (username);
+CREATE INDEX idx_email_users ON users (email);
+CREATE INDEX idx_created_by_users ON users (created_by);
+CREATE INDEX idx_is_email_verified_users ON users (is_email_verified);
+CREATE INDEX idx_is_active_users ON users (is_active);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

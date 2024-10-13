@@ -1,7 +1,11 @@
 use crate::{
-    helpers::user_helper::{hash_password, sign_jwt, verify_password},
+    helpers::{
+        handler_helper::ErrorResponse,
+        user_helper::{hash_password, sign_jwt, verify_password},
+    },
     models::user::{self, ActiveModel, Entity as User},
 };
+
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -37,19 +41,6 @@ pub struct LoginPayload {
 pub struct AuthorisedResponse {
     user_data: user::Model,
     token: String,
-}
-
-#[derive(Serialize)]
-pub struct ErrorResponse {
-    message: String,
-}
-
-impl ErrorResponse {
-    fn new(message: &str) -> ErrorResponse {
-        ErrorResponse {
-            message: String::from(message),
-        }
-    }
 }
 
 pub async fn create_user(

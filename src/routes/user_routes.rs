@@ -5,11 +5,10 @@ use axum::{
 };
 use sea_orm::DatabaseConnection;
 
-pub fn user_routes(db: DatabaseConnection) -> Router {
+pub fn user_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/", post(create_user))
         .route("/:user_id", get(get_user))
         .route("/list", get(get_users))
         .route("/login", post(do_login))
-        .with_state(db)
 }
