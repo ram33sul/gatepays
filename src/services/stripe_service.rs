@@ -10,7 +10,7 @@ use crate::{
     models::order::{ActiveModel, Model},
 };
 
-const STRIPE_VENDOR_ID: i32 = 3;
+const STRIPE_GATEWAY_ID: i32 = 3;
 
 async fn do_api<T>(
     endpoint: String,
@@ -42,7 +42,6 @@ impl CreatePaymentRequest {
 #[derive(Deserialize)]
 pub struct CreatePaymentResponse {
     id: String,
-    client_secret: String,
     status: String,
 }
 
@@ -66,8 +65,8 @@ pub async fn create_payment_intent(
     let order = ActiveModel {
         amount: Set(amount),
         currency: Set(currency),
-        vendor_id: Set(STRIPE_VENDOR_ID),
-        vendor_order_id: Set(response.id),
+        gateway_id: Set(STRIPE_GATEWAY_ID),
+        gateway_order_id: Set(response.id),
         status: Set(response.status),
         created_by: Set(1),
         ..Default::default()

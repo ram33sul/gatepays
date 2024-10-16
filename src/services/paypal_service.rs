@@ -1,7 +1,4 @@
-use std::default;
-
-use http::{header, Method};
-use reqwest::{Client, Error, StatusCode};
+use http::Method;
 use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
@@ -11,7 +8,7 @@ use crate::{
     models::order::{ActiveModel, Model},
 };
 
-const PAYPAL_VENDOR_ID: i32 = 1;
+const PAYPAL_GATEWAY_ID: i32 = 1;
 
 async fn do_api<T>(
     endpoint: String,
@@ -178,8 +175,8 @@ pub async fn create_order(
     )
     .await?;
     let order = ActiveModel {
-        vendor_id: Set(PAYPAL_VENDOR_ID),
-        vendor_order_id: Set((&created_order.id).to_string()),
+        gateway_id: Set(PAYPAL_GATEWAY_ID),
+        gateway_order_id: Set((&created_order.id).to_string()),
         status: Set(created_order.status.to_string()),
         amount: Set(amount),
         currency: Set(currency_code),

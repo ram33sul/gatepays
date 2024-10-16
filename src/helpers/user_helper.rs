@@ -27,9 +27,9 @@ pub fn verify_password(
 }
 
 #[derive(Serialize, Deserialize)]
-struct Claims {
-    sub: String,
-    exp: u64,
+pub struct Claims {
+    pub user_id: i32,
+    pub exp: u64,
 }
 
 pub fn sign_jwt(user_id: &i32) -> Result<String, jsonwebtoken::errors::Error> {
@@ -39,7 +39,7 @@ pub fn sign_jwt(user_id: &i32) -> Result<String, jsonwebtoken::errors::Error> {
         .as_secs()
         + 60 * 60 * 24 * 30 * 12;
     let claims = Claims {
-        sub: user_id.to_string(),
+        user_id: user_id.to_owned(),
         exp: expiration,
     };
     let env_config = config::Config::from_env();

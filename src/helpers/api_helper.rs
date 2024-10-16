@@ -4,8 +4,6 @@ use http::{header, StatusCode};
 use reqwest::{Client, Error};
 use serde::de::DeserializeOwned;
 
-use crate::config;
-
 pub struct DoApiError {
     pub status: StatusCode,
     pub error: String,
