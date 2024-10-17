@@ -1,8 +1,14 @@
-CREATE TABLE orders (
+CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
-    gateway_id INTEGER NOT NULL,
-    gateway_order_id VARCHAR NOT NULL,
+    order_id INTEGER NOT NULL,
     status VARCHAR NOT NULL,
+    amount INTEGER NOT NULL,
+    amount_received INTEGER NOT NULL,
+    net_amount INTEGER NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    payment_method VARCHAR NOT NULL,
+    customer_id INTEGER NOT NULL,
+    description VARCHAR DEFAULT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -10,8 +16,8 @@ CREATE TABLE orders (
     updated_at TIMESTAMP DEFAULT NULL
 );
 
-CREATE INDEX idx_is_active_orders ON orders(is_active);
-CREATE INDEX idx_gateway_id_orders ON orders(gateway_id);
+CREATE INDEX idx_is_active_payments ON payments(is_active);
+CREATE INDEX idx_order_id_payments ON payments(order_id);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -21,7 +27,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_orders_modtime
-BEFORE UPDATE ON orders
+CREATE TRIGGER update_payments_modtime
+BEFORE UPDATE ON payments
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();

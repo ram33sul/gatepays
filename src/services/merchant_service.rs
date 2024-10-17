@@ -1,9 +1,16 @@
+use axum::{
+    headers::{authorization::Basic, Authorization},
+    Json,
+};
+use http::StatusCode;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, Set,
 };
 
 use crate::{
-    helpers::{api_helper::DoApiError, api_key_helper::generate_api_key},
+    helpers::{
+        api_helper::DoApiError, api_key_helper::generate_api_key, handler_helper::ErrorResponse,
+    },
     models::merchant::{self, ActiveModel, Entity as Merchant, Model},
 };
 
@@ -43,5 +50,47 @@ pub async fn get_merchant_using_keys(
         .one(db)
         .await
         .map_err(|e| DoApiError::message(e.to_string()))?;
+    Ok(merchant)
+}
+
+pub async fn enable_or_disable_merchant(
+    db: &DatabaseConnection,
+    merchant_id: i32,
+    is_enabled: bool,
+    user_id: i32,
+) -> Result<Model, DoApiError> {
+    let updated_merchant = ActiveModel {
+        id: Set(merchant_id),
+        is_enabled: Set(is_enabled),
+        updated_by: Set(Some(user_id)),
+        ..Default::default()
+    };
+    let merchant = Merchant::update(updated_merchant)
+        .exec(db)
+        .await
+        .map_err(|e| DoApiError::message(e.to_string()))?;
+    Ok(merchant)
+}
+
+pub async fn authorize_and_fetch_merchant(
+    db: &DatabaseConnection,
+    authorization: Authorization<Basic>,
+) -> Result<Model, (StatusCode, Json<ErrorResponse>)> {
+    let merchant = get_merchant_using_keys(
+        db,
+        authorization.username().to_string(),
+        authorization.password().to_string(),
+    )
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(&e.error)),
+        )
+    })?
+    .ok_or((
+        StatusCode::BAD_REQUEST,
+        Json(ErrorResponse::new("Merchant not found")),
+    ))?;
     Ok(merchant)
 }

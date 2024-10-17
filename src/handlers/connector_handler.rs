@@ -42,6 +42,12 @@ pub async fn post_connector(
         StatusCode::BAD_REQUEST,
         Json(ErrorResponse::new("Merchant not found")),
     ))?;
+    if merchant.is_enabled == false {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse::new("Merchant is Disabled")),
+        ));
+    }
     let connector = create_connector(
         db,
         merchant.id,
