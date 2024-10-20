@@ -1,16 +1,14 @@
 use http::Method;
-use sea_orm::{ActiveModelTrait, DatabaseConnection, Set};
+use sea_orm::Set;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    config::{self},
     helpers::api_helper::{api, DoApiError},
-    models::order::{ActiveModel, Model},
+    models::{connector, gateway, order::ActiveModel},
 };
 
-const PAYPAL_GATEWAY_ID: i32 = 1;
-
 async fn do_api<T>(
+    gateway: &gateway::Model,
     endpoint: String,
     method: http::Method,
     body: serde_json::Value,
@@ -19,8 +17,7 @@ async fn do_api<T>(
 where
     T: DeserializeOwned,
 {
-    let env_config = config::Config::from_env();
-    let url = format!("{}/v2{}", env_config.paypal_url, endpoint);
+    let url = format!("{}/v2{}", gateway.url, endpoint);
     let formatted_authorization = format!("Bearer {}", authorization);
 
     api(
@@ -43,40 +40,25 @@ pub struct RefreshAccessTokenResponse {
     // expires_in: i32,
     // nonce: String,
 }
-pub async fn refresh_access_token() -> Result<RefreshAccessTokenResponse, DoApiError> {
-    let env_config = config::Config::from_env();
+pub async fn refresh_access_token(
+    gateway: &gateway::Model,
+    connector: &connector::Model,
+) -> Result<RefreshAccessTokenResponse, DoApiError> {
     let url = format!(
         "{}/v1/oauth2/token?grant_type=client_credentials",
-        env_config.paypal_url
+        gateway.url
     );
-    let client_id = env_config.paypal_client_id;
-    let secret_key = env_config.paypal_secret_key;
+    let client_id = &connector.gateway_api_key;
+    let secret_key = &connector.gateway_api_secret;
     api(
         url,
         Method::POST,
         None,
         None,
         None,
-        Some((client_id, Some(secret_key))),
+        Some((client_id.to_string(), Some(secret_key.to_string()))),
     )
     .await
-    // let response = Client::new()
-    //     .request(Method::POST, url)
-    //     .basic_auth(
-    //         env_config.paypal_client_id,
-    //         Some(env_config.paypal_secret_key),
-    //     )
-    //     .send()
-    //     .await
-    //     .map_err(|e| DoApiError::new(e))?;
-    // let token_data = response
-    //     .json::<RefreshAccessTokenResponse>()
-    //     .await
-    //     .map_err(|e| {
-    //         println!("{:?}", e);
-    //         DoApiError::new(e)
-    //     })?;
-    // Ok(token_data)
 }
 
 #[derive(serde::Serialize)]
@@ -87,14 +69,14 @@ pub enum OrderIntent {
 
 #[derive(serde::Serialize)]
 pub struct OrderAmount {
-    currency_code: String,
+    currency: String,
     value: String,
 }
 
 impl OrderAmount {
-    pub fn new(currency_code: &String, value: &String) -> Self {
+    pub fn new(currency: &String, value: &String) -> Self {
         Self {
-            currency_code: currency_code.to_string(),
+            currency: currency.to_string(),
             value: value.to_string(),
         }
     }
@@ -155,19 +137,21 @@ impl ToString for OrderStatus {
 }
 
 pub async fn create_order(
-    db: DatabaseConnection,
+    gateway: &gateway::Model,
+    connector: &connector::Model,
     amount: i32,
-    currency_code: String,
-) -> Result<Model, DoApiError> {
-    let access_token: RefreshAccessTokenResponse = refresh_access_token().await?;
+    currency: String,
+) -> Result<ActiveModel, DoApiError> {
+    let access_token: RefreshAccessTokenResponse = refresh_access_token(gateway, connector).await?;
     let body_struct = CreateOrderRequest::new(
         OrderIntent::CAPTURE,
         vec![OrderPurchaseUnit::new(
             String::from("reference_id"),
-            OrderAmount::new(&currency_code, &amount.to_string()),
+            OrderAmount::new(&currency, &amount.to_string()),
         )],
     );
     let created_order = do_api::<CreateOrderResponse>(
+        gateway,
         String::from("/checkout/orders"),
         Method::POST,
         serde_json::json!(body_struct),
@@ -175,17 +159,13 @@ pub async fn create_order(
     )
     .await?;
     let order = ActiveModel {
-        gateway_id: Set(PAYPAL_GATEWAY_ID),
+        gateway_id: Set(gateway.id),
         gateway_order_id: Set((&created_order.id).to_string()),
         status: Set(created_order.status.to_string()),
         amount: Set(amount),
-        currency: Set(currency_code),
+        currency: Set(currency),
         created_by: Set(1),
         ..Default::default()
     };
-    let db_order = order
-        .insert(&db)
-        .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
-    Ok(db_order)
+    Ok(order)
 }

@@ -1,7 +1,8 @@
 use chrono::NaiveDateTime;
 use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveActiveEnum, EnumIter)]
+#[derive(Clone, Debug, PartialEq, DeriveActiveEnum, EnumIter, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "gateway")]
 pub enum Gateway {
     #[sea_orm(string_value = "PAYPAL")]
@@ -12,12 +13,13 @@ pub enum Gateway {
     STRIPE,
 }
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "gateways")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub name: Gateway,
+    pub url: String,
     pub is_active: bool,
     pub created_by: i32,
     pub created_at: NaiveDateTime,

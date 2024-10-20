@@ -1,5 +1,6 @@
 mod config;
 mod db;
+mod gateway_services;
 mod handlers;
 mod helpers;
 mod models;

@@ -24,6 +24,13 @@ impl DoApiError {
             error: message,
         }
     }
+
+    pub fn custom(status: StatusCode, message: String) -> Self {
+        Self {
+            status,
+            error: message,
+        }
+    }
 }
 
 pub async fn api<T>(
