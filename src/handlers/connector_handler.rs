@@ -15,7 +15,6 @@ use crate::{
 
 #[derive(Serialize, Deserialize)]
 pub struct PostConnectorPayload {
-    merchant_id: i32,
     gateway_id: i32,
     gateway_api_key: String,
     gateway_api_secret: String,

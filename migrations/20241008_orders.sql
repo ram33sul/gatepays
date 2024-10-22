@@ -1,7 +1,9 @@
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
-    gateway_id INTEGER NOT NULL,
+    connector_id INTEGER NOT NULL,
     gateway_order_id VARCHAR NOT NULL,
+    amount INTEGER NOT NULL,
+    currency VARCHAR NOT NULL,
     status VARCHAR NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_by INTEGER NOT NULL,
@@ -11,7 +13,7 @@ CREATE TABLE orders (
 );
 
 CREATE INDEX idx_is_active_orders ON orders(is_active);
-CREATE INDEX idx_gateway_id_orders ON orders(gateway_id);
+CREATE INDEX idx_connectory_id_orders ON orders(connector_id);
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

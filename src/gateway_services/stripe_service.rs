@@ -21,7 +21,16 @@ where
 {
     let url = format!("{}{}", gateway.url, endpoint);
 
-    api(url, method, None, form, None, Some((secret_key, None))).await
+    api(
+        url,
+        method,
+        None,
+        form,
+        None,
+        Some((secret_key, None)),
+        Some("application/x-www-form-urlencoded".to_string()),
+    )
+    .await
 }
 
 #[derive(Serialize)]
@@ -63,7 +72,7 @@ pub async fn create_order(
     let order = ActiveModel {
         amount: Set(amount),
         currency: Set(currency),
-        gateway_id: Set(gateway.id),
+        connector_id: Set(connector.id),
         gateway_order_id: Set(response.id),
         status: Set(response.status),
         created_by: Set(1),

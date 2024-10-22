@@ -27,6 +27,7 @@ where
         None,
         Some(formatted_authorization),
         None,
+        Some("application/json".to_string()),
     )
     .await
 }
@@ -57,6 +58,7 @@ pub async fn refresh_access_token(
         None,
         None,
         Some((client_id.to_string(), Some(secret_key.to_string()))),
+        None,
     )
     .await
 }
@@ -69,14 +71,14 @@ pub enum OrderIntent {
 
 #[derive(serde::Serialize)]
 pub struct OrderAmount {
-    currency: String,
+    currency_code: String,
     value: String,
 }
 
 impl OrderAmount {
     pub fn new(currency: &String, value: &String) -> Self {
         Self {
-            currency: currency.to_string(),
+            currency_code: currency.to_string(),
             value: value.to_string(),
         }
     }
@@ -159,7 +161,7 @@ pub async fn create_order(
     )
     .await?;
     let order = ActiveModel {
-        gateway_id: Set(gateway.id),
+        connector_id: Set(connector.id),
         gateway_order_id: Set((&created_order.id).to_string()),
         status: Set(created_order.status.to_string()),
         amount: Set(amount),

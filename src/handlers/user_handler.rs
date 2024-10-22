@@ -4,6 +4,7 @@ use crate::{
         user_helper::{hash_password, sign_jwt, verify_password},
     },
     models::user::{self, ActiveModel, Entity as User},
+    services::user_service::{fetch_user_for_login, fetch_user_required},
 };
 
 use axum::{
@@ -106,12 +107,10 @@ pub async fn create_user(
 pub async fn get_user(
     State(db): State<DatabaseConnection>,
     Path(user_id): Path<i32>,
-) -> Result<Json<user::Model>, StatusCode> {
-    let user = User::find_by_id(user_id)
-        .one(&db)
+) -> Result<Json<user::Model>, (StatusCode, Json<ErrorResponse>)> {
+    let user = fetch_user_required(&db, user_id)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
+        .map_err(|e| (e.status, Json(ErrorResponse::new(&e.error))))?;
     Ok(Json(user))
 }
 
@@ -131,27 +130,34 @@ pub async fn get_users(
 pub async fn do_login(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<LoginPayload>,
-) -> Result<Json<AuthorisedResponse>, StatusCode> {
-    let user = User::find()
-        .filter(
-            Condition::any()
-                .add(user::Column::Username.eq(&payload.username_or_email))
-                .add(user::Column::Email.eq(&payload.username_or_email)),
-        )
-        .one(&db)
+) -> Result<Json<AuthorisedResponse>, (StatusCode, Json<ErrorResponse>)> {
+    let user = fetch_user_for_login(&db, payload.username_or_email)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .ok_or(StatusCode::NOT_FOUND)?;
-    let is_verified = verify_password(&user.password, &payload.password)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| (e.status, Json(ErrorResponse::new(&e.error))))?;
+    let is_verified = verify_password(&user.password, &payload.password).map_err(
+        |e: argon2::password_hash::Error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(&e.to_string())),
+            )
+        },
+    )?;
     if is_verified {
-        let token = sign_jwt(&user.id).map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR))?;
+        let token = sign_jwt(&user.id).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new(&e.to_string())),
+            )
+        })?;
         let data = AuthorisedResponse {
             user_data: user,
             token,
         };
         Ok(Json(data))
     } else {
-        Err(StatusCode::UNAUTHORIZED)
+        Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse::new("Incorrect Credentials")),
+        ))
     }
 }

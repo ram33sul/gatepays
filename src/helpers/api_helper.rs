@@ -40,6 +40,7 @@ pub async fn api<T>(
     form: Option<HashMap<String, String>>,
     authorization: Option<String>,
     basic_auth: Option<(String, Option<String>)>,
+    content_type: Option<String>,
 ) -> Result<T, DoApiError>
 where
     T: DeserializeOwned,
@@ -54,17 +55,24 @@ where
         );
     }
 
-    headers.insert(
-        header::CONTENT_TYPE,
-        header::HeaderValue::from_static("application/x-www-form-urlencoded"),
-    );
+    if let Some(content_type) = content_type {
+        headers.insert(
+            header::CONTENT_TYPE,
+            header::HeaderValue::from_str(content_type.as_str())
+                .map_err(|e| DoApiError::message(e.to_string()))?,
+        );
+    }
     let client = Client::new();
 
-    let mut request = client
-        .request(method, &url)
-        .headers(headers)
-        .json(&body)
-        .form(&form);
+    let mut request = client.request(method, &url).headers(headers);
+
+    if let Some(body) = body {
+        request = request.json(&body);
+    }
+
+    if let Some(form) = form {
+        request = request.form(&form)
+    }
 
     if let Some((username, password)) = basic_auth {
         request = request.basic_auth(username, password);
