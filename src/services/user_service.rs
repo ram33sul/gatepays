@@ -1,11 +1,14 @@
 use sea_orm::{ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter};
 
-use crate::{helpers::api_helper::DoApiError, models::user};
+use crate::{
+    dto::{failure_dto::FailureDto, result_dto::ResultDto},
+    models::user,
+};
 
 pub async fn fetch_user_for_login(
     db: &DatabaseConnection,
     username_or_email: String,
-) -> Result<user::Model, DoApiError> {
+) -> ResultDto<user::Model> {
     let user = user::Entity::find()
         .filter(
             Condition::any()
@@ -14,28 +17,22 @@ pub async fn fetch_user_for_login(
         )
         .one(db)
         .await
-        .map_err(|e| DoApiError::message(e.to_string()))?
-        .ok_or(DoApiError::message("User not found".to_string()))?;
+        .map_err(|e| FailureDto::from(e))?
+        .ok_or(FailureDto::from("User not found"))?;
     Ok(user)
 }
 
-pub async fn fetch_user(
-    db: &DatabaseConnection,
-    user_id: i32,
-) -> Result<Option<user::Model>, DoApiError> {
+pub async fn fetch_user(db: &DatabaseConnection, user_id: i32) -> ResultDto<Option<user::Model>> {
     let user = user::Entity::find_by_id(user_id)
         .one(db)
         .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+        .map_err(|e| FailureDto::from(e))?;
     Ok(user)
 }
 
-pub async fn fetch_user_required(
-    db: &DatabaseConnection,
-    user_id: i32,
-) -> Result<user::Model, DoApiError> {
+pub async fn fetch_user_required(db: &DatabaseConnection, user_id: i32) -> ResultDto<user::Model> {
     let user = fetch_user(db, user_id)
         .await?
-        .ok_or(DoApiError::message("User not found".to_string()))?;
+        .ok_or(FailureDto::from("User not found"))?;
     Ok(user)
 }

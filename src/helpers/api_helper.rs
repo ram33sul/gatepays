@@ -1,37 +1,10 @@
 use std::collections::HashMap;
 
-use http::{header, StatusCode};
-use reqwest::{Client, Error};
+use http::header;
+use reqwest::Client;
 use serde::de::DeserializeOwned;
 
-pub struct DoApiError {
-    pub status: StatusCode,
-    pub error: String,
-}
-
-impl DoApiError {
-    pub fn new(error: Error) -> Self {
-        let status = error.status().unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-        Self {
-            status,
-            error: error.to_string(),
-        }
-    }
-
-    pub fn message(message: String) -> Self {
-        Self {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            error: message,
-        }
-    }
-
-    pub fn custom(status: StatusCode, message: String) -> Self {
-        Self {
-            status,
-            error: message,
-        }
-    }
-}
+use crate::dto::failure_dto::FailureDto;
 
 pub async fn api<T>(
     url: String,
@@ -41,7 +14,7 @@ pub async fn api<T>(
     authorization: Option<String>,
     basic_auth: Option<(String, Option<String>)>,
     content_type: Option<String>,
-) -> Result<T, DoApiError>
+) -> Result<T, FailureDto>
 where
     T: DeserializeOwned,
 {
@@ -51,7 +24,7 @@ where
         headers.insert(
             header::AUTHORIZATION,
             header::HeaderValue::from_str(&format!("{}", authorization.unwrap_or("".to_string())))
-                .map_err(|e| DoApiError::message(e.to_string()))?,
+                .map_err(|e| FailureDto::from(e))?,
         );
     }
 
@@ -59,7 +32,7 @@ where
         headers.insert(
             header::CONTENT_TYPE,
             header::HeaderValue::from_str(content_type.as_str())
-                .map_err(|e| DoApiError::message(e.to_string()))?,
+                .map_err(|e| FailureDto::from(e))?,
         );
     }
     let client = Client::new();
@@ -78,18 +51,18 @@ where
         request = request.basic_auth(username, password);
     }
 
-    let response = request.send().await.map_err(|e| DoApiError::new(e))?;
+    let response = request.send().await.map_err(|e| FailureDto::from(e))?;
 
     let is_response_status = response.status().is_success();
 
-    let response_text = response.text().await.map_err(|e| DoApiError::new(e))?;
+    let response_text = response.text().await.map_err(|e| FailureDto::from(e))?;
 
     if !is_response_status {
-        return Err(DoApiError::message(format!("API error: {}", response_text)));
+        return Err(FailureDto::message(format!("API error: {}", response_text)));
     }
 
     let response_data = serde_json::from_str(&response_text)
-        .map_err(|e| DoApiError::message(format!("JSON parsing error: {}", e)))?;
+        .map_err(|e| FailureDto::message(format!("JSON parsing error: {}", e)))?;
 
     Ok(response_data)
 }

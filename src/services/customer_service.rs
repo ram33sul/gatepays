@@ -1,7 +1,9 @@
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect, Set,
+};
 
 use crate::{
-    helpers::api_helper::DoApiError,
+    dto::{failure_dto::FailureDto, result_dto::ResultDto},
     models::customers::{ActiveModel, Column, Entity as Customer, Model},
 };
 
@@ -15,7 +17,7 @@ pub async fn create_customer(
     phone: String,
     address_id: i32,
     description: String,
-) -> Result<Model, DoApiError> {
+) -> ResultDto<Model> {
     let customer = ActiveModel {
         merchant_id: Set(merchant_id),
         name: Set(name),
@@ -27,10 +29,7 @@ pub async fn create_customer(
         created_by: Set(user_id),
         ..Default::default()
     };
-    let created_customer = customer
-        .insert(db)
-        .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+    let created_customer = customer.insert(db).await.map_err(|e| FailureDto::from(e))?;
     Ok(created_customer)
 }
 
@@ -44,7 +43,7 @@ pub async fn update_customer(
     phone: String,
     address_id: i32,
     description: String,
-) -> Result<Model, DoApiError> {
+) -> ResultDto<Model> {
     let customer = ActiveModel {
         id: Set(customer_id),
         name: Set(name),
@@ -56,48 +55,50 @@ pub async fn update_customer(
         updated_by: Set(Some(user_id)),
         ..Default::default()
     };
-    let updated_customer = customer
-        .update(db)
-        .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+    let updated_customer = customer.update(db).await.map_err(|e| FailureDto::from(e))?;
     Ok(updated_customer)
 }
 
-pub async fn retrieve_customer(
-    db: &DatabaseConnection,
-    customer_id: i32,
-) -> Result<Option<Model>, DoApiError> {
+pub async fn fetch_customer(db: &DatabaseConnection, customer_id: i32) -> ResultDto<Option<Model>> {
     let customer = Customer::find_by_id(customer_id)
         .one(db)
         .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+        .map_err(|e| FailureDto::from(e))?;
     Ok(customer)
 }
 
-pub async fn retrieve_customer_list(
-    db: &DatabaseConnection,
-    merchant_id: i32,
-) -> Result<Vec<Model>, DoApiError> {
-    let customer = Customer::find()
-        .filter(Column::MerchantId.eq(merchant_id))
-        .all(db)
-        .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
-    Ok(customer)
-}
-
-pub async fn delete_customer(
+pub async fn fetch_customer_required(
     db: &DatabaseConnection,
     customer_id: i32,
-) -> Result<bool, DoApiError> {
+) -> ResultDto<Model> {
+    let customer = fetch_customer(db, customer_id)
+        .await?
+        .ok_or(FailureDto::from("Customer not found"))?;
+    Ok(customer)
+}
+
+pub async fn fetch_customer_list(
+    db: &DatabaseConnection,
+    merchant_id: i32,
+    page: u64,
+    page_size: u64,
+) -> ResultDto<Vec<Model>> {
+    let customer = Customer::find()
+        .filter(Column::MerchantId.eq(merchant_id))
+        .offset(page * page_size)
+        .limit(page_size)
+        .all(db)
+        .await
+        .map_err(|e| FailureDto::from(e))?;
+    Ok(customer)
+}
+
+pub async fn remove_customer(db: &DatabaseConnection, customer_id: i32) -> ResultDto<bool> {
     let customer = ActiveModel {
         id: Set(customer_id),
         is_active: Set(false),
         ..Default::default()
     };
-    customer
-        .update(db)
-        .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+    customer.update(db).await.map_err(|e| FailureDto::from(e))?;
     Ok(true)
 }

@@ -1,11 +1,13 @@
 mod config;
 mod db;
+mod dto;
 mod gateway_services;
 mod handlers;
 mod helpers;
 mod models;
 mod routes;
 mod services;
+mod utils;
 
 use axum::Server;
 use std::net::SocketAddr;

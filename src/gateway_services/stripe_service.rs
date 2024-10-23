@@ -5,7 +5,8 @@ use sea_orm::Set;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    helpers::api_helper::{api, DoApiError},
+    dto::result_dto::ResultDto,
+    helpers::api_helper::api,
     models::{connector, gateway, order::ActiveModel},
 };
 
@@ -15,7 +16,7 @@ async fn do_api<T>(
     method: http::Method,
     form: Option<HashMap<String, String>>,
     secret_key: String,
-) -> Result<T, DoApiError>
+) -> ResultDto<T>
 where
     T: DeserializeOwned,
 {
@@ -56,7 +57,7 @@ pub async fn create_order(
     connector: &connector::Model,
     amount: i32,
     currency: String,
-) -> Result<ActiveModel, DoApiError> {
+) -> ResultDto<ActiveModel> {
     let secret_key = &connector.gateway_api_secret;
     let mut form = HashMap::new();
     form.insert("amount".to_string(), amount.to_string());

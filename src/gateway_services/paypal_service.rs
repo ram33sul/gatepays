@@ -3,7 +3,8 @@ use sea_orm::Set;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
-    helpers::api_helper::{api, DoApiError},
+    dto::result_dto::ResultDto,
+    helpers::api_helper::api,
     models::{connector, gateway, order::ActiveModel},
 };
 
@@ -13,7 +14,7 @@ async fn do_api<T>(
     method: http::Method,
     body: serde_json::Value,
     authorization: String,
-) -> Result<T, DoApiError>
+) -> ResultDto<T>
 where
     T: DeserializeOwned,
 {
@@ -44,7 +45,7 @@ pub struct RefreshAccessTokenResponse {
 pub async fn refresh_access_token(
     gateway: &gateway::Model,
     connector: &connector::Model,
-) -> Result<RefreshAccessTokenResponse, DoApiError> {
+) -> ResultDto<RefreshAccessTokenResponse> {
     let url = format!(
         "{}/v1/oauth2/token?grant_type=client_credentials",
         gateway.url
@@ -143,7 +144,7 @@ pub async fn create_order(
     connector: &connector::Model,
     amount: i32,
     currency: String,
-) -> Result<ActiveModel, DoApiError> {
+) -> ResultDto<ActiveModel> {
     let access_token: RefreshAccessTokenResponse = refresh_access_token(gateway, connector).await?;
     let body_struct = CreateOrderRequest::new(
         OrderIntent::CAPTURE,

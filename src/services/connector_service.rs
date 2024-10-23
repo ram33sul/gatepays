@@ -1,11 +1,10 @@
-use http::StatusCode;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter,
     QueryOrder, Set,
 };
 
 use crate::{
-    helpers::api_helper::DoApiError,
+    dto::{failure_dto::FailureDto, result_dto::ResultDto},
     models::connector::{self, ActiveModel, Model},
 };
 
@@ -16,7 +15,7 @@ pub async fn create_connector(
     gateway_api_key: String,
     gateway_api_secret: String,
     user_id: i32,
-) -> Result<Model, DoApiError> {
+) -> ResultDto<Model> {
     let connector = ActiveModel {
         merchant_id: Set(merchant_id),
         gateway_id: Set(gateway_id),
@@ -28,7 +27,7 @@ pub async fn create_connector(
     let created_connector = connector
         .insert(&db)
         .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+        .map_err(|e| FailureDto::from(e))?;
     Ok(created_connector)
 }
 
@@ -36,7 +35,7 @@ pub async fn get_connector_required(
     db: &DatabaseConnection,
     merchant_id: i32,
     connector_id: Option<i32>,
-) -> Result<connector::Model, DoApiError> {
+) -> ResultDto<connector::Model> {
     let connector_filter = Condition::all()
         .add(connector::Column::IsActive.eq(true))
         .add(connector::Column::MerchantId.eq(merchant_id));
@@ -48,10 +47,7 @@ pub async fn get_connector_required(
         .filter(connector_filter)
         .one(db)
         .await
-        .map_err(|e| DoApiError::message(e.to_string()))?
-        .ok_or(DoApiError::custom(
-            StatusCode::BAD_REQUEST,
-            "Connector not found".to_string(),
-        ))?;
+        .map_err(|e| FailureDto::from(e))?
+        .ok_or(FailureDto::from("Connector not found"))?;
     Ok(connector)
 }

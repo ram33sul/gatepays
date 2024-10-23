@@ -1,10 +1,9 @@
 use crate::{
-    helpers::{
-        handler_helper::ErrorResponse,
-        user_helper::{hash_password, sign_jwt, verify_password},
-    },
+    dto::failure_dto::FailureDto,
+    helpers::user_helper::{hash_password, sign_jwt, verify_password},
     models::user::{self, ActiveModel, Entity as User},
     services::user_service::{fetch_user_for_login, fetch_user_required},
+    utils::pagination::PaginationParams,
 };
 
 use axum::{
@@ -27,12 +26,6 @@ pub struct CreateUserPayload {
 }
 
 #[derive(Deserialize)]
-pub struct PaginationParams {
-    page: u64,
-    page_size: u64,
-}
-
-#[derive(Deserialize)]
 pub struct LoginPayload {
     username_or_email: String,
     password: String,
@@ -47,13 +40,8 @@ pub struct AuthorisedResponse {
 pub async fn create_user(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateUserPayload>,
-) -> Result<(StatusCode, Json<AuthorisedResponse>), (StatusCode, Json<ErrorResponse>)> {
-    let hashed_password = hash_password(&payload.password).map_err(|_| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new("Cannot hash password")),
-        )
-    })?;
+) -> Result<(StatusCode, Json<AuthorisedResponse>), FailureDto> {
+    let hashed_password = hash_password(&payload.password).map_err(|e| FailureDto::from(e))?;
     let existing_user = User::find()
         .filter(
             Condition::any()
@@ -62,17 +50,9 @@ pub async fn create_user(
         )
         .one(&db)
         .await
-        .map_err(|_| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new("Error fetching existing User")),
-            )
-        })?;
+        .map_err(|e| FailureDto::from(e))?;
     if let Some(_) = existing_user {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse::new("User already exist")),
-        ));
+        return Err(FailureDto::from("User already Exists"));
     }
     let user = ActiveModel {
         username: Set(payload.username),
@@ -82,19 +62,9 @@ pub async fn create_user(
         ..Default::default()
     };
 
-    let created_user = user.insert(&db).await.map_err(|_| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new("Error creating user")),
-        )
-    })?;
+    let created_user = user.insert(&db).await.map_err(|e| FailureDto::from(e))?;
 
-    let token = sign_jwt(&created_user.id).map_err(|_| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new("Error creating user")),
-        )
-    })?;
+    let token = sign_jwt(&created_user.id).map_err(|e| FailureDto::from(e))?;
 
     let data = AuthorisedResponse {
         user_data: created_user,
@@ -107,57 +77,41 @@ pub async fn create_user(
 pub async fn get_user(
     State(db): State<DatabaseConnection>,
     Path(user_id): Path<i32>,
-) -> Result<Json<user::Model>, (StatusCode, Json<ErrorResponse>)> {
-    let user = fetch_user_required(&db, user_id)
-        .await
-        .map_err(|e| (e.status, Json(ErrorResponse::new(&e.error))))?;
+) -> Result<Json<user::Model>, FailureDto> {
+    let user = fetch_user_required(&db, user_id).await.map_err(|e| e)?;
     Ok(Json(user))
 }
 
 pub async fn get_users(
     State(db): State<DatabaseConnection>,
     Query(params): Query<PaginationParams>,
-) -> Result<Json<Vec<user::Model>>, StatusCode> {
+) -> Result<Json<Vec<user::Model>>, FailureDto> {
     let users = User::find()
         .offset(params.page * params.page_size)
         .limit(params.page_size)
         .all(&db)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| FailureDto::from(e))?;
     Ok(Json(users))
 }
 
 pub async fn do_login(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<LoginPayload>,
-) -> Result<Json<AuthorisedResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let user = fetch_user_for_login(&db, payload.username_or_email)
-        .await
-        .map_err(|e| (e.status, Json(ErrorResponse::new(&e.error))))?;
-    let is_verified = verify_password(&user.password, &payload.password).map_err(
-        |e: argon2::password_hash::Error| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(&e.to_string())),
-            )
-        },
-    )?;
+) -> Result<Json<AuthorisedResponse>, FailureDto> {
+    let user = fetch_user_for_login(&db, payload.username_or_email).await?;
+    let is_verified =
+        verify_password(&user.password, &payload.password).map_err(|e| FailureDto::from(e))?;
     if is_verified {
-        let token = sign_jwt(&user.id).map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(&e.to_string())),
-            )
-        })?;
+        let token = sign_jwt(&user.id).map_err(|e| FailureDto::from(e))?;
         let data = AuthorisedResponse {
             user_data: user,
             token,
         };
         Ok(Json(data))
     } else {
-        Err((
-            StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse::new("Incorrect Credentials")),
+        Err(FailureDto::unauthorized(
+            "Incorrect Credentials".to_string(),
         ))
     }
 }

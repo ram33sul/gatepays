@@ -1,16 +1,11 @@
-use axum::{
-    headers::{authorization::Basic, Authorization},
-    Json,
-};
-use http::StatusCode;
+use axum::headers::{authorization::Basic, Authorization};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, QueryFilter, Set,
 };
 
 use crate::{
-    helpers::{
-        api_helper::DoApiError, api_key_helper::generate_api_key, handler_helper::ErrorResponse,
-    },
+    dto::{failure_dto::FailureDto, result_dto::ResultDto},
+    helpers::api_key_helper::generate_api_key,
     models::merchant::{self, ActiveModel, Entity as Merchant, Model},
 };
 
@@ -18,7 +13,7 @@ pub async fn create_merchant(
     db: DatabaseConnection,
     user_id: i32,
     name: String,
-) -> Result<Model, DoApiError> {
+) -> ResultDto<Model> {
     let api_keys = generate_api_key();
     let merchant = ActiveModel {
         user_id: Set(user_id),
@@ -31,7 +26,7 @@ pub async fn create_merchant(
     let created_merchant = merchant
         .insert(&db)
         .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+        .map_err(|e| FailureDto::from(e))?;
     Ok(created_merchant)
 }
 
@@ -39,8 +34,8 @@ pub async fn get_merchant_using_keys(
     db: &DatabaseConnection,
     api_key: String,
     api_secret: String,
-) -> Result<Option<Model>, DoApiError> {
-    let merchant = Merchant::find()
+) -> ResultDto<Option<Model>> {
+    let merchant: Option<Model> = Merchant::find()
         .filter(
             Condition::all()
                 .add(merchant::Column::ApiKey.eq(&api_key))
@@ -49,7 +44,7 @@ pub async fn get_merchant_using_keys(
         )
         .one(db)
         .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+        .map_err(|e| FailureDto::from(e))?;
     Ok(merchant)
 }
 
@@ -58,7 +53,7 @@ pub async fn enable_or_disable_merchant(
     merchant_id: i32,
     is_enabled: bool,
     user_id: i32,
-) -> Result<Model, DoApiError> {
+) -> ResultDto<Model> {
     let updated_merchant = ActiveModel {
         id: Set(merchant_id),
         is_enabled: Set(is_enabled),
@@ -68,29 +63,21 @@ pub async fn enable_or_disable_merchant(
     let merchant = Merchant::update(updated_merchant)
         .exec(db)
         .await
-        .map_err(|e| DoApiError::message(e.to_string()))?;
+        .map_err(|e| FailureDto::from(e))?;
     Ok(merchant)
 }
 
 pub async fn authorize_and_fetch_merchant(
     db: &DatabaseConnection,
     authorization: Authorization<Basic>,
-) -> Result<Model, (StatusCode, Json<ErrorResponse>)> {
+) -> ResultDto<Model> {
     let merchant = get_merchant_using_keys(
         db,
         authorization.username().to_string(),
         authorization.password().to_string(),
     )
     .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ErrorResponse::new(&e.error)),
-        )
-    })?
-    .ok_or((
-        StatusCode::BAD_REQUEST,
-        Json(ErrorResponse::new("Merchant not found")),
-    ))?;
+    .map_err(|e| e)?
+    .ok_or(FailureDto::from("Merchant not found"))?;
     Ok(merchant)
 }

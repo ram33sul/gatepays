@@ -3,12 +3,11 @@ use axum::{
     headers::{authorization::Basic, Authorization},
     Json, TypedHeader,
 };
-use http::StatusCode;
 use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    helpers::handler_helper::ErrorResponse,
+    dto::result_dto::ResultDto,
     models::order::{self},
     services::{merchant_service::authorize_and_fetch_merchant, order_service::create_order},
 };
@@ -24,7 +23,7 @@ pub async fn post_order(
     State(db): State<DatabaseConnection>,
     TypedHeader(authorization): TypedHeader<Authorization<Basic>>,
     Json(payload): Json<PostOrderPayload>,
-) -> Result<Json<order::Model>, (StatusCode, Json<ErrorResponse>)> {
+) -> ResultDto<Json<order::Model>> {
     let merchant = authorize_and_fetch_merchant(&db, authorization).await?;
     let order = create_order(
         &db,
@@ -33,7 +32,6 @@ pub async fn post_order(
         payload.amount,
         payload.currency,
     )
-    .await
-    .map_err(|e| (e.status, Json(ErrorResponse::new(&e.error))))?;
+    .await?;
     Ok(Json(order))
 }
