@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use http::Method;
-use sea_orm::Set;
+use sea_orm::{EntityTrait, Set};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::{
@@ -9,6 +9,8 @@ use crate::{
     helpers::api_helper::api,
     models::{connector, gateway, order::ActiveModel},
 };
+
+const GATEWAY_ID: i32 = 3;
 
 async fn do_api<T>(
     gateway: &gateway::Model,
@@ -50,6 +52,7 @@ impl CreatePaymentRequest {
 pub struct CreatePaymentResponse {
     id: String,
     status: String,
+    client_secret: String,
 }
 
 pub async fn create_order(
@@ -76,8 +79,30 @@ pub async fn create_order(
         connector_id: Set(connector.id),
         gateway_order_id: Set(response.id),
         status: Set(response.status),
+        order_secret: Set(response.client_secret),
         created_by: Set(1),
         ..Default::default()
     };
     Ok(order)
+}
+
+#[derive(Deserialize)]
+pub struct CreateCheckoutSessionResponse {
+    id: String,
+    created: i32,
+    amount_total: i32,
+}
+pub async fn create_checkout_session(
+    gateway: &gateway::Model,
+    connector: &connector::Model,
+) -> ResultDto<CreateCheckoutSessionResponse> {
+    let response = do_api::<CreateCheckoutSessionResponse>(
+        gateway,
+        "/checkout/sessions".to_string(),
+        Method::POST,
+        None,
+        (&connector.gateway_api_secret).to_string(),
+    )
+    .await?;
+    Ok(response)
 }

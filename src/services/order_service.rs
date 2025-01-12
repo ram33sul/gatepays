@@ -32,3 +32,25 @@ pub async fn create_order(
         .map_err(|e| FailureDto::from(e))?;
     Ok(order)
 }
+
+// pub async fn fetch_order(
+//     db: &DatabaseConnection,
+//     order_id: i32,
+// ) -> ResultDto<Option<order::Model>> {
+//     let order = order::Entity::find_by_id(order_id)
+//         .filter(order::Column::IsActive.eq(true))
+//         .one(db)
+//         .await
+//         .map_err(|e| FailureDto::from(e))?;
+//     Ok(order)
+// }
+
+// pub async fn fetch_order_required(
+//     db: &DatabaseConnection,
+//     order_id: i32,
+// ) -> ResultDto<order::Model> {
+//     let order = fetch_order(db, order_id)
+//         .await?
+//         .ok_or(FailureDto::from("Order not found"))?;
+//     Ok(order)
+// }

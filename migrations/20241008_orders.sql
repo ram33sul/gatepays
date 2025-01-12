@@ -5,6 +5,7 @@ CREATE TABLE orders (
     amount INTEGER NOT NULL,
     currency VARCHAR NOT NULL,
     status VARCHAR NOT NULL,
+    order_secret VARCHAR,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

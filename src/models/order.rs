@@ -12,6 +12,7 @@ pub struct Model {
     pub status: String,
     pub amount: i32,
     pub currency: String,
+    pub order_secret: String,
     pub is_active: bool,
     pub created_by: i32,
     pub created_at: NaiveDateTime,
